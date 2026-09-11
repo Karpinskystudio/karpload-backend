@@ -1,0 +1,51 @@
+name: Download Video
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Video URL'
+        required: true
+      uuid:
+        description: 'Unique ID for release tag'
+        required: true
+
+jobs:
+  download:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install yt-dlp
+        run: pip install -U yt-dlp
+
+      - name: Download video
+        run: |
+          mkdir -p output
+          yt-dlp \
+            -f "best[ext=mp4]/best" \
+            --no-playlist \
+            --no-check-certificate \
+            --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" \
+            -o "output/%(title).80s.%(ext)s" \
+            "${{ inputs.url }}" || true
+          ls -la output/
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.uuid }}
+          name: "Video ${{ inputs.uuid }}"
+          files: output/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
